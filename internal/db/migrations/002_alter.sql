@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS guitars (
+  id SERIAL PRIMARY KEY,
+  model TEXT NOT NULL
+);
+
