@@ -9,7 +9,7 @@ import (
 var Pool *pgxpool.Pool
 
 func InitDB() error {
-	connStr := "postgres://admin:000@localhost:5432/shop?sslmode=disable"
+	connStr := "postgres://postgres:000@localhost:5432/shop?sslmode=disable&client_encoding=UTF-8"
 	
 	config, err := pgxpool.ParseConfig(connStr)
 	if err != nil {
