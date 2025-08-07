@@ -1,1 +1,0 @@
-ALTER TABLE guitars ADD COLUMN price DECIMAL(10, 2);

@@ -1,21 +1,23 @@
-FROM golang:1.24.5-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
-RUN apk add --no-cache git
+RUN apk add --no-cache git ca-certificates
 
 WORKDIR /app
-
 COPY go.mod go.sum ./
 RUN go mod download
-
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /guitar-shop-api
+# Собираем оба бинарника в /bin
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /bin/guitar-api ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /bin/guitar-cli ./cmd/cli
 
 FROM alpine:latest
+RUN apk add --no-cache tzdata ca-certificates
 
-RUN apk add --no-cache tzdata 
+COPY --from=builder /bin/guitar-api /bin/
+COPY --from=builder /bin/guitar-cli /bin/
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-COPY --from=builder /guitar-shop-api /guitar-shop-api
-
+WORKDIR /app
 EXPOSE 8080
-CMD ["/guitar-shop-api"]
+CMD ["guitar-api"]

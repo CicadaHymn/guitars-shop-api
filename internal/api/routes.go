@@ -11,5 +11,3 @@ func SetupRouters(r *gin.Engine) {
 	r.GET("/orders", handlers.GetOrders)
 	
 }
-
-// Завтра нужно подключить SWAGGER для теста функций

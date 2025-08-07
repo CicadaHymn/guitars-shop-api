@@ -1,0 +1,23 @@
+BEGIN;
+  DO $$
+  BEGIN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_type WHERE typname = 'order_status'
+    ) THEN
+      CREATE TYPE order_status AS ENUM(
+        'pending', 'processing', 'delivered',
+        'completed', 'returned', 'canceled'
+      );
+    END IF;
+  END $$;
+
+CREATE TABLE IF NOT EXISTS orders (
+  id INT GENERATED ALWAYS AS IDENTITY
+  (START WITH 1000 INCREMENT BY 1)
+  PRIMARY KEY,
+  phone VARCHAR(20) NOT NULL,
+  address TEXT NOT NULL,
+  product_id INTEGER,
+  status order_status DEFAULT 'pending' NOT NULL
+);
+COMMIT;

@@ -28,7 +28,7 @@ func CreateOrder(b *Order) error {
 	err := db.Pool.QueryRow(ctx, query,b.Phone, b.Address, b.ProductID, b.Status).Scan(&b.ID)
 	
 	if err != nil {
-		return fmt.Errorf("ошибка создания заказа: %v", err)
+		return fmt.Errorf("create order failed: %v", err)
 	}
 	return nil
 	
@@ -44,7 +44,7 @@ func GetOrders() ([]Order, error) {
 
 	rows, err := db.Pool.Query(ctx, query)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка получения заказов: %v", err)
+		return nil, fmt.Errorf("ger orders failed: %v", err)
 	}
 	defer rows.Close()
 
@@ -52,7 +52,7 @@ func GetOrders() ([]Order, error) {
 	for rows.Next() {
 		var order Order
 		if err := rows.Scan(&order.ID, &order.Phone, &order.Address, &order.ProductID, &order.Status); err != nil {
-			return nil, fmt.Errorf("ошибка сканирования заказа: %v", err)
+			return nil, fmt.Errorf("scanning order was failed: %v", err)
 		}
 		orders = append(orders, order)
 	}

@@ -1,5 +1,8 @@
+BEGIN;
 CREATE TABLE IF NOT EXISTS guitars (
   id SERIAL PRIMARY KEY,
-  model TEXT NOT NULL
+  model TEXT NOT NULL,
+  price DECIMAL(10, 2)
 );
+COMMIT
 

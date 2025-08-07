@@ -4,76 +4,96 @@ import (
 	"context"
 	"embed"
 	"fmt"
-    "errors"
-	"io/fs"
 	"log"
-	"path/filepath"
-	"sort"
-	"strconv"
-	"strings"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/golang-migrate/migrate/v4"
+    _ "github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
 func ApplyMigrations(ctx context.Context) error {
-    // 1. Получаем все файлы миграций
-    files, err := fs.Glob(migrationsFS, "migrations/*.sql")
+	config := Pool.Config()
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable&client_encoding=UTF8",
+		config.ConnConfig.User,
+		config.ConnConfig.Password,
+		config.ConnConfig.Host,
+		config.ConnConfig.Port,
+		config.ConnConfig.Database,
+	)
+
+	// инициализация миграций
+	source, err := iofs.New(migrationsFS, "migrations")
+	if err != nil {
+		return fmt.Errorf("failed to init migrations source: %w", err)
+	}
+
+	// создание мигратора
+	m, err := migrate.NewWithSourceInstance("iofs", source, connStr)
+	if err != nil {
+		return fmt.Errorf("failed to create migrator: %w", err)
+	}
+	defer m.Close()
+
+	// применяем
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("failed to apply migrations: %w", err)
+	}
+
+	// лог результата
+	version, dirty, _ := m.Version()
+	log.Printf("Migrations applied. Version: %d (dirty: %v)", version, dirty)
+
+	return nil
+}
+
+func RollBackLastMigration(ctx context.Context) error {
+	config := Pool.Config()
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable&client_encoding=UTF8",
+		config.ConnConfig.User,
+		config.ConnConfig.Password,
+		config.ConnConfig.Host,
+		config.ConnConfig.Port,
+		config.ConnConfig.Database,
+	)
+
+	source, err := iofs.New(migrationsFS, "migrations")
+	if err != nil {
+		return fmt.Errorf("failed to init migrations source: %w", err)
+	}
+
+	m, err := migrate.NewWithSourceInstance("iofs", source, connStr)
+	if err != nil {
+		return fmt.Errorf("failed to create migrator: %w", err)
+	}
+	defer m.Close()
+
+	// проверка текущей версии миграций
+  currentVersion, dirty, err := m.Version()
     if err != nil {
-        return fmt.Errorf("ошибка чтения миграций: %w", err)
+        if err == migrate.ErrNilVersion {
+            log.Println("no migrations applied yet - nothing to rollback")
+            return nil
     }
-    sort.Strings(files)
-
-    conn, err := Pool.Acquire(ctx)
-    if err != nil {
-        return err
+        return fmt.Errorf("failed to get current migration version: %w", err)
     }
-    defer conn.Release()
-
-    for _, file := range files {
-        // 2. Извлекаем номер миграции
-        versionStr := strings.Split(filepath.Base(file), "_")[0]
-        version, err := strconv.Atoi(versionStr)
-        if err != nil {
-            return fmt.Errorf("неверный формат номера в %s: %w", file, err)
-        }
-
-        // 3. Проверяем, была ли уже применена миграция
-        var dummy int
-        err = conn.QueryRow(ctx,
-            "SELECT 1 FROM schema_versions WHERE version = $1",
-            version,
-        ).Scan(&dummy)
-
-        if err == nil {
-            continue
-        } else if !errors.Is(err, pgx.ErrNoRows) {
-            return fmt.Errorf("ошибка проверки миграции %03d: %w", version, err)
-        }
-
-        // 4. Читаем SQL файл
-        sql, err := migrationsFS.ReadFile(file)
-        if err != nil {
-            return fmt.Errorf("ошибка чтения файла %s: %w", file, err)
-        }
-
-        // 5. Выполняем SQL
-        if _, err := conn.Exec(ctx, string(sql)); err != nil {
-            return fmt.Errorf("ошибка выполнения миграции %03d: %w", version, err)
-        }
-
-        // 6. Записываем версию в schema_versions
-        if _, err := conn.Exec(ctx,
-            "INSERT INTO schema_versions (version) VALUES ($1)",
-            version,
-        ); err != nil {
-            return fmt.Errorf("ошибка записи миграции %03d: %w", version, err)
-        }
-
-        log.Printf("Применена миграция %03d: %s", version, file)
+    // проверка ДБ на статус dirty
+    if dirty {
+        return fmt.Errorf("cannot rollback, database is dirty")
     }
 
-    return nil
+	if err := m.Steps(-1); err != nil {
+        if err == migrate.ErrNoChange {
+            log.Println("no migrations applied yet - nothing to rollback")
+            return nil
+        }
+		return fmt.Errorf("failed to apply migrations: %w", err)
+	}
+
+	newVersion, _, _ := m.Version()
+    log.Printf("Successfully rolled back from version %d to %d", currentVersion, newVersion)
+
+	return nil
 }
