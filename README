@@ -25,9 +25,59 @@ curl -X POST http://localhost:8080/order \
 -d '{"phone": "1234567890", "address": "123 Ваша улица St", "product_id": 1, "status": "pending"}'
 3.Выводится JSON-ответ с ID заказа(!!Так же вводить статус заказа для нового заказа не обязательно, он по умолчанию pending!!):
 
-DOCKER: Осталось доделать подключение к БД, что то не работает и будет всё готово
-Заход в CLI:
+DOCKER:
+Команды выполняются в терминале VScode, или же в терминале:
+Путь к проекту cd D:\guitars-shop-api
+
+!!!Остановка docker, удаление контейнеров и томов
+docker-compose down -v --remove-orphans
+
+Удаление образов проекта
+docker-compose down --rmi all
+
+Остановка сервисов
+docker-compose stop
+
+Остановить и удалить контейнеры(Томы и образы остаются)
+docker-compose down
+
+!!!Запуск служб
+
+docker-compose up -d
+
+Запуск и пересборка
+
+docker-compose up --build -d
+
+!Проверка запущенных контейнеров
+
+docker ps
+
+Показать все контейнеры
+
+docker ps -a
+
+!Логи: 
+!api
+docker-compose logs api
+!db
+docker-compose logs db
+!all
+docker-compose logs
+
+Состояние сервисов
+docker-compose ps
+
+
+!Заход в CLI:
 cd D:\guitars-shop-api
 docker-compose exec api sh
-docker-compose down -v
-docker-compose up --build -d
+Для выполнения CLI: /bin/guitar-cli migrate {Команда из CLI}
+Для помощи CLI: /bin/guitar-cli
+
+!При столкновении с ошибкой "failed to copy: tls: received record with version 21da when expecting version 303"
+Попробовать команду "docker system prune -a --volumes"
+
+!Работа с БД
+Для установки postgerSQL "apk add postgresql-client"
+Заход в БД "psql -h db -U postgres -d shop"

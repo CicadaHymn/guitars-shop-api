@@ -30,7 +30,7 @@ func StartServer() {
 }
 
 func setupRoutes(r *gin.Engine) {
-	api.SetupRouters(r) // Только API, без лишних роутов
+	api.SetupRouters(r)
 }
 
 // выполнение всех невыполненных миграций
